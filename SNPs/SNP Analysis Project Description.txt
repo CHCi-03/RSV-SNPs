@@ -1,0 +1,66 @@
+# SNP Calculation and Mutation Analysis Project Documentation
+
+## Purpose
+This project aims to read gene sequences from FASTA format files, identify Single Nucleotide Polymorphisms (SNPs), calculate mutation types, mutation rates, and their impacts on amino acid sequences, ultimately saving results to Excel files for subsequent analysis.
+
+## Core Functional Modules
+
+### 1. Sequence File Reading
+- **Function**: Read FASTA format files and convert all sequences to uppercase.
+- **Logic**:
+    - Use `SeqIO` module to read FASTA files from specified paths.
+    - Convert sequence portions of each record to uppercase to ensure consistency.
+
+### 2. Sequence Length Validation
+- **Function**: Ensure all read sequences have consistent lengths.
+- **Logic**:
+    - Take the first sequence as reference, verify all sequences match reference length.
+    - Raise `ValueError` exception if lengths differ.
+
+### 3. SNP Identification
+- **Function**: Detect SNPs at each position.
+- **Logic**:
+    - Iterate through each position of reference sequence, collect nucleotides from all sequences.
+    - Record positions with multiple distinct nucleotides as SNPs.
+
+### 4. Excel Workbook Creation
+- **Function**: Create Excel file to store mutation information.
+- **Logic**:
+    - Use `openpyxl` module to create new workbook and worksheet.
+    - Set header row: "Mutation Type", "Position", "Nucleotide Change", "Amino Acid Change", "Mutation Rate".
+
+### 5. Protein Sequence Translation
+- **Function**: Translate DNA sequences to amino acid sequences.
+- **Logic**:
+    - Define `translate_to_protein` function translating nucleotide triplets (codons).
+    - Skip invalid codons, return translated amino acid sequence.
+
+### 6. Mutation Count Calculation
+- **Function**: Count mutations at each position.
+- **Logic**:
+    - Initialize dictionary to store mutation counts per position.
+    - Tally occurrences of each nucleotide across sequences for identified SNPs.
+
+### 7. Excel Data Export
+- **Function**: Write SNP information to Excel file.
+- **Logic**:
+    - Process all SNPs, classify mutation types (synonymous/non-synonymous).
+    - Calculate mutation rates and export to Excel with: mutation type, position, nucleotide change, amino acid change, and mutation rate.
+
+### 8. Excel File Saving
+- **Function**: Save mutation data to Excel file.
+- **Logic**:
+    - Save workbook using specified path, output save path to console.
+
+## Important Notes
+- Ensure input FASTA files are properly formatted with consistent sequence lengths.
+- Skip positions containing invalid nucleotides (e.g., 'N', 'Y', 'W') during processing.
+- Output Excel file contains all identified mutations for subsequent analysis.
+
+## Output
+Final Excel file `A-L析.xlsx` will be saved at specified path, containing:
+- Mutation type
+- Genomic position
+- Nucleotide change
+- Amino acid change (if applicable) 
+- Mutation rate

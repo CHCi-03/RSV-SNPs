@@ -1,0 +1,111 @@
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio.Data import CodonTable
+import openpyxl
+
+# Read sequence file (assumed to be in FASTA format)
+file_path = "F:\\Desktop\\respiratory syncytial virus\\0812-\\A\\A-L.fas"  # Corrected file path
+sequences = list(SeqIO.parse(file_path, "fasta"))
+
+# Convert all sequences to uppercase
+for seq_record in sequences:
+    seq_record.seq = Seq(str(seq_record.seq).upper())
+
+# Verify all sequences have the same length
+reference_seq = str(sequences[0].seq)
+if not all(len(seq) == len(reference_seq) for seq in sequences):
+    raise ValueError("All sequences must be the same length.")
+
+# Define invalid nucleotide set
+invalid_nucleotides = {'N', 'Y', 'W', 'B', 'H', 'M', 'D'}
+
+# Identify SNPs
+snps = {}
+for position in range(len(reference_seq)):
+    nucleotides = set(nuc for seq in sequences for nuc in seq[position])
+    if len(nucleotides) > 1:
+        snps[position] = nucleotides
+
+# Create Excel workbook and worksheet
+wb = openpyxl.Workbook()
+ws = wb.active
+ws.title = "Mutations"
+
+# Set header row
+ws.append(["Mutation Type", "Position", "Nucleotide Change", "Amino Acid Change", "Mutation Rate"])
+
+def translate_to_protein(seq, skip_invalid_codons=True):
+    codon_table = CodonTable.unambiguous_dna_by_name["Standard"]
+    protein_seq = []
+    for i in range(0, len(seq), 3):  # Process every three nucleotides as a codon
+        codon = seq[i:i+3]
+        if '-' in codon or codon not in codon_table.forward_table:
+            if skip_invalid_codons:
+                continue  # Skip untranslatable codons
+            else:
+                protein_seq.append('?')  # Use '?' for untranslatable codons
+        else:
+            try:
+                protein_seq.append(codon_table.forward_table[codon])
+            except KeyError:
+                # Skip codons not found in genetic code table
+                continue
+    return ''.join(protein_seq)
+
+# Calculate mutation counts per position
+mutation_counts = {position: {nuc: 0 for nuc in nucleotides} for position, nucleotides in snps.items()}
+total_sequences = len(sequences)
+
+for position, nucleotides in snps.items():
+    for seq in sequences:
+        if seq[position] in nucleotides:
+            mutation_counts[position][seq[position]] += 1
+
+# Process SNPs and write to Excel
+for position, nucleotides in snps.items():
+    wildtype_nucleotide = reference_seq[position]
+    for snp in nucleotides:
+        # Ensure SNP is valid and different from wildtype
+        if snp != wildtype_nucleotide and snp !='-' and snp not in invalid_nucleotides:
+            # Format mutation notation
+            mutation = f"{wildtype_nucleotide}→{snp}"
+            
+            # Create mutant sequence record
+            mutant_seq_str = reference_seq[:position] + snp + reference_seq[position+1:]
+            mutant_seq_record = SeqRecord(Seq(mutant_seq_str), id="mutant", description="")
+            
+            # Translate sequences, skipping invalid codons
+            wildtype_seq = sequences[0].seq
+            wildtype_aa = translate_to_protein(wildtype_seq, skip_invalid_codons=True)
+            mutant_aa = translate_to_protein(mutant_seq_record.seq, skip_invalid_codons=True)
+            
+            # Determine amino acid position
+            protein_position = position // 3
+            if protein_position < len(wildtype_aa):  # Prevent index out of range
+                wildtype_aa_at_position = wildtype_aa[protein_position]
+                try:
+                    mutant_aa_at_position = mutant_aa[protein_position]
+                except IndexError:
+                    # Skip mutations causing sequence length changes
+                    continue
+
+                # Classify mutation type
+                if wildtype_aa_at_position != mutant_aa_at_position:
+                    mutation_type = "Nonsynonymous"
+                    amino_acid_change = f"{wildtype_aa_at_position}→{mutant_aa_at_position}"
+                else:
+                    mutation_type = "Synonymous"
+                    amino_acid_change = ""
+
+                # Calculate mutation rate
+                mutation_rate = mutation_counts[position][snp] / total_sequences
+                mutation_rate = round(mutation_rate, 5)
+
+                # Write to Excel (add 1 to position for 1-based numbering)
+                ws.append([mutation_type, position + 1, mutation, amino_acid_change, mutation_rate])
+
+# Save Excel file
+output_path = "F:\\Desktop\\respiratory syncytial virus\\0812-\\A\\A-L析.xlsx"
+wb.save(output_path)
+print(f"Excel file saved to: {output_path}")
